@@ -47,7 +47,7 @@ def review_receipt(text: str) -> str:
 
 ```mermaid
 flowchart TD
-    A[Application Code] --> B[@trace_llm or trace_span]
+    A[Application Code] --> B[Traced Function or Span]
     B --> C[Trace Context]
     C --> D[OpenAI or Anthropic Wrapper]
     D --> E[LLM API Call]
