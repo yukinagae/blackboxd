@@ -1,0 +1,26 @@
+{
+  "name": "@blackboxd/sdk",
+  "version": "0.1.0",
+  "description": "Lightweight TypeScript SDK for append-only LLM tracing.",
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./storage/jsonl": "./src/storage/jsonl.ts",
+    "./storage/supabase": "./src/storage/supabase.ts",
+    "./providers/openai": "./src/providers/openai.ts",
+    "./providers/anthropic": "./src/providers/anthropic.ts"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "pg": "^8.12.0"
+  },
+  "optionalDependencies": {
+    "openai": "^6.0.0"
+  },
+  "scripts": {
+    "test": "node --experimental-strip-types --test tests/**/*.test.ts"
+  }
+}

@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "blackboxd"
+version = "0.1.0"
+description = "Lightweight local-first tracing for LLM prompt and response logs."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+supabase = ["psycopg[binary]>=3.1,<4"]
+openai = ["openai>=1.30,<2"]
+anthropic = ["anthropic>=0.34,<1"]
+fastapi = ["fastapi>=0.110,<1", "uvicorn>=0.29,<1"]
+dev = ["pytest>=8,<9"]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
