@@ -43,6 +43,25 @@ def review_receipt(text: str) -> str:
     return response.output_text
 ```
 
+## Processing Flow
+
+```mermaid
+flowchart TD
+    A[Application Code] --> B[@trace_llm or trace_span]
+    B --> C[Trace Context]
+    C --> D[OpenAI or Anthropic Wrapper]
+    D --> E[LLM API Call]
+    D --> F[blackboxd Event Builder]
+    B --> F
+    F --> G[Append-only Event]
+    G --> H[JSONL Storage]
+    G --> I[Supabase Storage]
+    H --> J[Replay and Debug]
+    I --> J
+```
+
+The typical flow is: your application enters a traced function or span, `blackboxd` creates or propagates trace context, the provider wrapper captures the LLM request and response, and the resulting event is persisted to JSONL or Supabase for later replay and debugging.
+
 ## What Gets Captured
 
 Each event stores:
