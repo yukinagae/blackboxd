@@ -15,7 +15,7 @@
 
 ```bash
 pip install -e .
-pip install -e ".[openai,anthropic,supabase,fastapi,dev]"
+pip install -e ".[openai,anthropic,httpx,supabase,fastapi,dev]"
 ```
 
 ## Quick Start
@@ -118,6 +118,84 @@ configure(
     app_version="2026.05.07",
 )
 ```
+
+## Python Integration Patterns
+
+`blackboxd` supports multiple adoption styles so you can compare how invasive each approach is in an existing codebase.
+
+### 1. Wrapper Client
+
+Best for new code or codebases that can replace imports cleanly.
+
+```python
+from blackboxd import OpenAI
+
+client = OpenAI()
+response = client.responses.create(model="gpt-4.1-mini", input="Review this receipt.")
+```
+
+### 2. Decorator And Span
+
+Best when you want business-level spans even if the LLM client stays unchanged.
+
+```python
+from blackboxd import trace_llm, trace_span
+
+
+@trace_llm(tags=["review"])
+def review(text: str):
+    with trace_span("classify"):
+        return client.responses.create(model="gpt-4.1-mini", input=text)
+```
+
+### 3. Instrument An Existing Client
+
+Best default for existing code because you keep your current SDK client and add tracing afterward.
+
+```python
+from openai import OpenAI
+
+from blackboxd import instrument_openai
+
+client = instrument_openai(OpenAI())
+response = client.responses.create(model="gpt-4.1-mini", input="Review this receipt.")
+```
+
+### 4. Instrument HTTP Transport
+
+Best when you already standardize on `httpx.Client` and want one shared transport-level hook.
+
+```python
+import httpx
+from openai import OpenAI
+
+from blackboxd import BlackboxdTransport
+
+http_client = httpx.Client(
+    transport=BlackboxdTransport(httpx.HTTPTransport(), provider="openai")
+)
+client = OpenAI(http_client=http_client)
+```
+
+### 5. Monkey Patch
+
+Best only for experiments or short-lived migrations. It keeps call sites almost unchanged but is the most fragile approach.
+
+```python
+from openai import OpenAI
+
+from blackboxd import patch_openai
+
+client = OpenAI()
+handles = patch_openai(client)
+```
+
+### Recommendation
+
+- For greenfield code: wrapper client or decorator-based tracing are both reasonable.
+- For existing production code: `instrument_openai(...)` or `instrument_anthropic(...)` is usually the easiest path.
+- For shared platform teams: HTTP transport instrumentation is often the cleanest cross-project integration.
+- For quick evaluation only: monkey patching is useful, but it should not be the primary long-term API.
 
 ## Storage Backends
 
@@ -225,6 +303,9 @@ Supported MVP capture points:
 
 - Local script: [examples/local_script.py](examples/local_script.py)
 - FastAPI integration: [examples/fastapi_app.py](examples/fastapi_app.py)
+- Existing client instrumentation: [examples/openai_instrument_existing_client.py](examples/openai_instrument_existing_client.py)
+- HTTP transport pattern: [examples/httpx_transport_pattern.py](examples/httpx_transport_pattern.py)
+- Monkey patch pattern: [examples/monkey_patch_pattern.py](examples/monkey_patch_pattern.py)
 
 Run the FastAPI example:
 
