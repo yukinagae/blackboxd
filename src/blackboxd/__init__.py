@@ -1,5 +1,6 @@
 from .config import configure, get_config
-from .decorators import trace_llm
+from .decorators import trace, trace_llm
+from .io import record_io, run_io, wrap_io_call
 from .httpx import (
     AsyncBlackboxdTransport,
     BlackboxdTransport,
@@ -40,7 +41,11 @@ __all__ = [
     "instrument_openai",
     "patch_anthropic",
     "patch_openai",
+    "record_io",
+    "run_io",
     "SupabaseStorage",
+    "trace",
     "trace_llm",
     "trace_span",
+    "wrap_io_call",
 ]

@@ -9,7 +9,7 @@ from blackboxd.span import trace_span
 from blackboxd.storage.base import Storage
 
 
-def trace_llm(
+def trace(
     func: Callable[..., Any] | None = None,
     *,
     name: str | None = None,
@@ -49,3 +49,20 @@ def trace_llm(
     if func is not None:
         return decorator(func)
     return decorator
+
+
+def trace_llm(
+    func: Callable[..., Any] | None = None,
+    *,
+    name: str | None = None,
+    tags: list[str] | None = None,
+    metadata: dict[str, Any] | None = None,
+    storage: Storage | str | None = None,
+):
+    return trace(
+        func,
+        name=name,
+        tags=tags,
+        metadata=metadata,
+        storage=storage,
+    )

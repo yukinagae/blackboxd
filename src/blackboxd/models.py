@@ -22,7 +22,7 @@ class TraceEvent:
     trace_id: str
     span_id: str
     id: str = field(default_factory=lambda: str(uuid4()))
-    kind: Literal["span", "llm"] = "span"
+    kind: Literal["span", "io", "llm"] = "span"
     created_at: datetime = field(default_factory=utc_now)
     ended_at: datetime | None = None
     latency_ms: int | None = None
@@ -55,6 +55,9 @@ class TraceEvent:
 
     def model_dump(self, *, mode: str = "python") -> dict[str, Any]:
         payload = asdict(self)
+        payload["event_type"] = self.kind
+        payload["input"] = payload["prompt"]
+        payload["output"] = payload["response"]
         if mode == "json":
             from blackboxd.serialization import to_jsonable
 

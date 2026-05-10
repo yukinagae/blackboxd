@@ -1,6 +1,6 @@
 # blackboxd
 
-`blackboxd` is a lightweight SDK for append-only LLM prompt/response logging. It is built for debugging, replay, and auditability without adding a proxy, gateway, or heavy observability stack.
+`blackboxd` is a lightweight SDK for append-only input/output event logging. It is built for debugging, replay, and auditability without adding a proxy, gateway, or heavy observability stack. LLM tracing is a first-class use case, but the core API is provider-agnostic.
 
 ## Principles
 
@@ -8,6 +8,7 @@
 - Local-first developer workflow
 - Minimal setup and dependencies
 - Decorator and context-manager based tracing
+- Generic input/output event recording
 - Structured JSON persistence
 - Replayable logs for scripts, APIs, jobs, and agent pipelines
 
@@ -21,7 +22,7 @@ pip install -e ".[openai,anthropic,httpx,supabase,fastapi,dev]"
 ## Quick Start
 
 ```python
-from blackboxd import OpenAI, configure, trace_llm, trace_span
+from blackboxd import configure, record_io, trace, trace_span
 
 configure(
     storage=".blackboxd/logs.jsonl",
@@ -30,62 +31,90 @@ configure(
     default_tags=["receipt-review"],
 )
 
-client = OpenAI()
+@trace(tags=["pipeline"])
+def review_receipt(text: str) -> dict:
+    with trace_span("normalize", metadata={"step": "normalize"}):
+        normalized = text.strip().lower()
 
-
-@trace_llm(tags=["pipeline"])
-def review_receipt(text: str) -> str:
-    with trace_span("classify", metadata={"step": "classify"}):
-        response = client.responses.create(
-            model="gpt-4.1-mini",
-            input=f"Review this receipt: {text}",
-        )
-    return response.output_text
+    record_io(
+        name="classify_document",
+        input_data={"text": normalized},
+        output_data={"label": "receipt", "confidence": 0.98},
+        metadata={"stage": "classification"},
+    )
+    return {"status": "ok"}
 ```
 
 ## Processing Flow
 
 ```mermaid
 flowchart TD
-    A[Application Code] --> B[Traced Function or Span]
+    A[Application Code] --> B[trace or trace_span]
     B --> C[Trace Context]
-    C --> D[OpenAI or Anthropic Wrapper]
-    D --> E[LLM API Call]
-    D --> F[blackboxd Event Builder]
-    B --> F
-    F --> G[Append-only Event]
-    G --> H[JSONL Storage]
-    G --> I[Supabase Storage]
-    H --> J[Replay and Debug]
-    I --> J
+    C --> D[record_io or domain helper]
+    D --> E[blackboxd Event Builder]
+    E --> F[Append-only Event]
+    F --> G[JSONL Storage]
+    F --> H[Supabase Storage]
+    G --> I[Replay and Debug]
+    H --> I
 ```
 
-The typical flow is: your application enters a traced function or span, `blackboxd` creates or propagates trace context, the provider wrapper captures the LLM request and response, and the resulting event is persisted to JSONL or Supabase for later replay and debugging.
+The typical flow is: your application enters a traced function or span, `blackboxd` creates or propagates trace context, your code records an input/output event, and the resulting event is persisted to JSONL or Supabase for later replay and debugging.
 
 ## What Gets Captured
 
 Each event stores:
 
 - `timestamp` via `created_at` and `ended_at`
+- `event_type`
 - `trace_id`
 - `span_id`
 - `parent_span_id`
-- `provider`
-- `model`
-- `prompt`
-- `response`
+- `input`
+- `output`
 - `latency_ms`
-- `input_tokens`
-- `output_tokens`
 - `tags`
 - `metadata`
 - `error`
 - `environment`
 - `app_version`
 
+LLM-specific integrations may also add:
+
+- `provider`
+- `model`
+- `input_tokens`
+- `output_tokens`
+
 ## Core API
 
+### `trace`
+
+```python
+from blackboxd import trace
+
+
+@trace(tags=["batch"])
+def run_batch():
+    ...
+```
+
+### `record_io`
+
+```python
+from blackboxd import record_io
+
+record_io(
+    name="classify_document",
+    input_data={"text": "hello"},
+    output_data={"label": "receipt"},
+)
+```
+
 ### `trace_llm`
+
+Compatibility alias around `trace(...)` for LLM-oriented call sites.
 
 ```python
 from blackboxd import trace_llm
@@ -192,6 +221,7 @@ handles = patch_openai(client)
 
 ### Recommendation
 
+- For the most stable core integration: use `trace(...)`, `trace_span(...)`, and `record_io(...)`.
 - For greenfield code: wrapper client or decorator-based tracing are both reasonable.
 - For existing production code: `instrument_openai(...)` or `instrument_anthropic(...)` is usually the easiest path.
 - For shared platform teams: HTTP transport instrumentation is often the cleanest cross-project integration.
@@ -302,6 +332,7 @@ Supported MVP capture points:
 ## Examples
 
 - Local script: [examples/local_script.py](examples/local_script.py)
+- Generic I/O pipeline: [examples/generic_io_pipeline.py](examples/generic_io_pipeline.py)
 - FastAPI integration: [examples/fastapi_app.py](examples/fastapi_app.py)
 - Existing client instrumentation: [examples/openai_instrument_existing_client.py](examples/openai_instrument_existing_client.py)
 - HTTP transport pattern: [examples/httpx_transport_pattern.py](examples/httpx_transport_pattern.py)
